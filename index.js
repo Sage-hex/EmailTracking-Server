@@ -234,6 +234,8 @@
 // 
 
 
+// index.js
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -246,7 +248,11 @@ const MONGO_URI = process.env.MONGO_URI;
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:5173' }));
+
+// For development, allow all origins; later, you can restrict to your frontend domain.
+app.use(cors());
+app.options('*', cors());
+
 app.use(morgan('dev'));
 
 // Connect to MongoDB
@@ -255,10 +261,11 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Use routes defined in routes/index.js
+// Import and use routes from the routes folder
 const routes = require('./routes');
 app.use('/', routes);
 
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

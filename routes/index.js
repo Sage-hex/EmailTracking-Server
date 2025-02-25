@@ -1,5 +1,6 @@
 // routes/index.js
 
+
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -10,7 +11,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// Define the User model (Google-only)
+// --- Mongoose Models ---
+
+// User model (Google-only)
 const userSchema = new mongoose.Schema({
   googleId: { type: String, required: true, unique: true },
   username: String,
@@ -18,7 +21,7 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// Define the TrackingEvent model
+// Tracking Event model
 const trackingEventSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   query: Object,
@@ -28,17 +31,20 @@ const trackingEventSchema = new mongoose.Schema({
 });
 const TrackingEvent = mongoose.model('TrackingEvent', trackingEventSchema);
 
-// Authentication middleware for secured routes
+// --- Authentication Middleware ---
+
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
-    req.user = decoded; // contains userId, email, username
+    req.user = decoded; // contains { userId, email, username }
     next();
   });
 }
+
+// --- Routes ---
 
 // Root route
 router.get('/', (req, res) => {
@@ -46,6 +52,7 @@ router.get('/', (req, res) => {
 });
 
 // Tracking endpoint (public)
+// This endpoint logs the tracking event and returns a 1x1 transparent PNG.
 router.get('/track', async (req, res) => {
   try {
     let userId = null;
@@ -86,8 +93,10 @@ router.get('/track', async (req, res) => {
 });
 
 // Google OAuth endpoint (login)
+// This endpoint receives a Google token, verifies it with Google,
+// creates or finds a user in the database, and issues a custom JWT.
 router.post('/auth/google', async (req, res) => {
-  const { token } = req.body; // token from frontend Google OAuth
+  const { token } = req.body; // Token from frontend Google OAuth
   if (!token) return res.status(400).json({ error: 'No token provided' });
   try {
     const ticket = await oauthClient.verifyIdToken({
@@ -128,7 +137,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
   }
 });
 
-// Secured events endpoint (returns per-user events)
+// Secured events endpoint (returns per-user tracking events)
 router.get('/events', authenticateToken, async (req, res) => {
   try {
     const events = await TrackingEvent.find({ user: req.user.userId }).sort({ timestamp: -1 });
