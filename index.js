@@ -238,6 +238,8 @@
 
 // index.js
 
+// index.js
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -248,13 +250,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI;
 
-// Middleware: Parse JSON bodies
+// Middleware to parse JSON bodies
 app.use(express.json());
 
 // Allow all origins for development (adjust for production)
 app.use(cors());
+app.options('*', cors());
 
-// Logger middleware
 app.use(morgan('dev'));
 
 // Connect to MongoDB
@@ -263,20 +265,12 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Mount routes (this includes your /auth/google, /track, etc.)
-const routes = require('./routes');
-app.use('/', routes);
+// Mount routes
+const authRoutes = require('./routes/auth');
+const trackingRoutes = require('./routes/tracking');
+app.use('/auth', authRoutes);
+app.use('/', trackingRoutes);
 
-// Catch-all OPTIONS handler: This will respond to any OPTIONS request that wasn't handled above
-app.options('*', (req, res) => {
-  console.log("Handling OPTIONS request for", req.url);
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.sendStatus(200);
-});
-
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
