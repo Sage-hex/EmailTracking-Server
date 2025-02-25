@@ -236,6 +236,8 @@
 
 // index.js
 
+// index.js
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -249,9 +251,18 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware
 app.use(express.json());
 
-// For development, allow all origins; later, you can restrict to your frontend domain.
+// CORS: Allow all origins for development. (For production, restrict this to your actual frontend origin.)
 app.use(cors());
-app.options('*', cors());
+// Explicitly handle OPTIONS requests for all routes
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(morgan('dev'));
 
@@ -261,11 +272,10 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Import and use routes from the routes folder
+// Mount routes
 const routes = require('./routes');
 app.use('/', routes);
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
