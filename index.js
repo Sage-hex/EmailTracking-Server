@@ -231,32 +231,22 @@
 // });
 
 
+// index.js
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const { OAuth2Client } = require('google-auth-library');
+const routes = require('./routes'); // Import your routes
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // must be set in .env
 
-// Middleware to parse JSON bodies
+// Middleware
 app.use(express.json());
-
-// Set up CORS so that requests from your frontend (http://localhost:5173) are allowed
-app.use(
-  cors({
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(morgan('dev'));
 
 // Connect to MongoDB
@@ -265,164 +255,9 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// =======================
-// Mongoose Schemas/Models
-// =======================
-
-// User Schema for Google-only authentication
-const userSchema = new mongoose.Schema({
-  googleId: { type: String, required: true, unique: true },
-  username: String,
-  email: { type: String, required: true, unique: true },
-});
-const User = mongoose.model('User', userSchema);
-
-// Tracking Event Schema
-const trackingEventSchema = new mongoose.Schema({
-  timestamp: { type: Date, default: Date.now },
-  query: Object,
-  userAgent: String,
-  ip: String,
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-});
-const TrackingEvent = mongoose.model('TrackingEvent', trackingEventSchema);
-
-// =======================
-// Google OAuth Setup
-// =======================
-const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-
-// =======================
-// JWT Authentication Helper
-// =======================
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
-    req.user = decoded; // { userId, email, username }
-    next();
-  });
-}
-
-// =======================
-// Google OAuth Endpoint
-// =======================
-app.post('/auth/google', async (req, res) => {
-  const { token } = req.body; // token from frontend Google OAuth
-  if (!token) return res.status(400).json({ error: 'No token provided' });
-
-  try {
-    // Verify the token with Google
-    const ticket = await oauthClient.verifyIdToken({
-      idToken: token,
-      audience: GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    const { sub, email, name } = payload; // sub is the Google user ID
-
-    // Check if the user exists; if not, create one
-    let user = await User.findOne({ googleId: sub });
-    if (!user) {
-      user = new User({
-        googleId: sub,
-        username: name,
-        email,
-      });
-      await user.save();
-    }
-
-    // Create our own JWT token (valid for 1 hour)
-    const ourToken = jwt.sign(
-      { userId: user._id, email: user.email, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.json({ token: ourToken });
-  } catch (error) {
-    console.error('Error verifying Google token:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// =======================
-// Tracking Endpoint (Public)
-// =======================
-app.get('/track', async (req, res) => {
-  try {
-    let userId = null;
-    const authHeader = req.headers['authorization'];
-    if (authHeader) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        userId = decoded.userId;
-      } catch (err) {
-        // Invalid token; treat as unauthenticated
-      }
-    }
-
-    const event = new TrackingEvent({
-      query: req.query,
-      userAgent: req.headers['user-agent'],
-      ip: req.ip,
-      user: userId,
-    });
-    await event.save();
-    console.log('Tracking event logged:', event);
-
-    // Return a 1x1 transparent PNG
-    const pixel = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAR9rLhEAAAAASUVORK5CYII=",
-      "base64"
-    );
-    res.writeHead(200, {
-      "Content-Type": "image/png",
-      "Content-Length": pixel.length,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
-    });
-    res.end(pixel);
-  } catch (error) {
-    console.error('Error in /track:', error);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-// =======================
-// Secured Endpoints (Per-User Data)
-// =======================
-app.get('/analytics', authenticateToken, async (req, res) => {
-  try {
-    const count = await TrackingEvent.countDocuments({ user: req.user.userId });
-    res.json({ opens: count, clicks: 0 });
-  } catch (error) {
-    console.error('Error in /analytics:', error);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-app.get('/events', authenticateToken, async (req, res) => {
-  try {
-    const events = await TrackingEvent.find({ user: req.user.userId }).sort({ timestamp: -1 });
-    res.json(events);
-  } catch (error) {
-    console.error('Error in /events:', error);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-// =======================
-// Global Error Handler (Optional)
-// =======================
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).send('Something broke!');
-});
+// Use the router for all routes starting at the root path
+app.use('/', routes);
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
