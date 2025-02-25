@@ -231,14 +231,14 @@
 // });
 
 
-// index.js
+// 
+
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
-const routes = require('./routes'); // Import your routes
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -255,7 +255,8 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Use the router for all routes starting at the root path
+// Use routes defined in routes/index.js
+const routes = require('./routes');
 app.use('/', routes);
 
 app.listen(PORT, () => {
