@@ -289,6 +289,7 @@
 
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 
@@ -299,15 +300,19 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Custom CORS middleware - explicitly sets headers for every request
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // Allow all origins; for production, set this to your frontend URL
-  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
+// Set up CORS explicitly for your production frontend
+app.use(cors({
+  origin: "https://emailtracker-eta.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// Explicitly handle OPTIONS requests (preflight)
+app.options('*', (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return res.sendStatus(200);
 });
 
 app.use(morgan('dev'));
