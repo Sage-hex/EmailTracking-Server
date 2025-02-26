@@ -289,7 +289,6 @@
 
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 
@@ -297,22 +296,19 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI;
 
-// Middleware to parse JSON bodies
 app.use(express.json());
 
-// Set up CORS explicitly for your production frontend
-app.use(cors({
-  origin: "https://emailtracker-eta.vercel.app",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
-// Explicitly handle OPTIONS requests (preflight)
-app.options('*', (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+// Custom CORS Middleware: Set CORS headers for every request
+app.use((req, res, next) => {
+  // Allow only the Vercel domain (adjust if needed)
+  res.header("Access-Control-Allow-Origin", "https://emailtracker-eta.vercel.app");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  return res.sendStatus(200);
+  // If it's a preflight OPTIONS request, end here
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
 app.use(morgan('dev'));
@@ -323,7 +319,7 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Mount routes
+// Mount your routes
 const authRoutes = require('./routes/auth');
 const trackingRoutes = require('./routes/tracking');
 app.use('/auth', authRoutes);
