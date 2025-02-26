@@ -285,8 +285,6 @@
 
 
 
-// index.js
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -300,17 +298,36 @@ const MONGO_URI = process.env.MONGO_URI;
 // Parse JSON bodies
 app.use(express.json());
 
-// Set up CORS options explicitly
+// Set up CORS options explicitly for your Vercel domain
 const corsOptions = {
-  origin: "https://emailtracker-eta.vercel.app",  // Allow only your Vercel domain
+  origin: "https://emailtracker-eta.vercel.app", // allowed origin
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 200, // For legacy browser support
+  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
-// Use the cors middleware with the options
+// Use the cors middleware with these options
 app.use(cors(corsOptions));
+
+// Also handle preflight OPTIONS requests before mounting routes (optional)
 app.options('*', cors(corsOptions));
+
+// Mount your routes
+const authRoutes = require('./routes/auth');
+const trackingRoutes = require('./routes/tracking');
+app.use('/auth', authRoutes);
+app.use('/', trackingRoutes);
+
+// Catch-all OPTIONS handler (if a preflight isn't caught above)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header("Access-Control-Allow-Origin", "https://emailtracker-eta.vercel.app");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(morgan('dev'));
 
@@ -320,12 +337,7 @@ const db = mongoose.connection;
 db.on('error', (err) => console.error('MongoDB connection error:', err));
 db.once('open', () => console.log('Connected to MongoDB'));
 
-// Mount routes
-const authRoutes = require('./routes/auth');
-const trackingRoutes = require('./routes/tracking');
-app.use('/auth', authRoutes);
-app.use('/', trackingRoutes);
-
+// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
