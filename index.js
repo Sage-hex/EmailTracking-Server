@@ -238,11 +238,57 @@
 
 // index.js
 
+// require('dotenv').config();
+// const express = require('express');
+// const cors = require('cors');
+// const morgan = require('morgan');
+// const mongoose = require('mongoose');
+
+// const app = express();
+// const PORT = process.env.PORT || 3001;
+// const MONGO_URI = process.env.MONGO_URI;
+
+// // Middleware to parse JSON bodies
+// app.use(express.json());
+
+// // Global CORS middleware: Allow all origins for development.
+// // (For production, restrict to your frontend's origin.)
+// app.use(cors());
+
+// // Explicitly handle OPTIONS requests (preflight)
+// app.use((req, res, next) => {
+//   if (req.method === 'OPTIONS') {
+//     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+//     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+//     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+//     return res.sendStatus(200);
+//   }
+//   next();
+// });
+
+// app.use(morgan('dev'));
+
+// // Connect to MongoDB
+// mongoose.connect(MONGO_URI);
+// const db = mongoose.connection;
+// db.on('error', (err) => console.error('MongoDB connection error:', err));
+// db.once('open', () => console.log('Connected to MongoDB'));
+
+// // Mount routes
+// const routes = require('./routes');
+// app.use('/', routes);
+
+// app.listen(PORT, () => {
+//   console.log(`Server running on http://localhost:${PORT}`);
+// });
+
+
+
+
 // index.js
 
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 
@@ -253,9 +299,16 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Allow all origins for development (adjust for production)
-app.use(cors());
-app.options('*', cors());
+// Custom CORS middleware - explicitly sets headers for every request
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*"); // Allow all origins; for production, set this to your frontend URL
+  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(morgan('dev'));
 
