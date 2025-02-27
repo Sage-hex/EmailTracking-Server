@@ -358,16 +358,20 @@ app.use(cors({ origin: '*' })); // Allow all origins for public endpoints
 app.use(morgan('dev'));
 
 // Connect to MongoDB
-mongoose.connect(MONGO_URI);
-const db = mongoose.connection;
-db.on('error', (err) => console.error('MongoDB connection error:', err));
-db.once('open', () => console.log('Connected to MongoDB'));
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Mount routes
 const authRoutes = require('./routes/auth');
 const trackingRoutes = require('./routes/tracking');
 app.use('/auth', authRoutes); // For /auth/login and /auth/signup
 app.use('/', trackingRoutes); // For /track, /analytics, /events
+
+// Root route
+app.get('/', (req, res) => {
+  res.send('Email Tracking Server is running');
+});
 
 // Start the server
 app.listen(PORT, () => {
