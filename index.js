@@ -352,21 +352,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI;
 
-// Parse JSON bodies
+// Middleware
 app.use(express.json());
-
-// CORS middleware for public tracking endpoint
-app.use('/track', cors({ origin: '*' }));
-
-// CORS middleware for other routes
-const corsOptions = {
-  origin: "https://emailtracker-eta.vercel.app", // allowed origin
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-};
-app.use(cors(corsOptions));
-
-// Middleware for logging
+app.use(cors({ origin: '*' })); // Allow all origins for public endpoints
 app.use(morgan('dev'));
 
 // Connect to MongoDB
@@ -378,8 +366,8 @@ db.once('open', () => console.log('Connected to MongoDB'));
 // Mount routes
 const authRoutes = require('./routes/auth');
 const trackingRoutes = require('./routes/tracking');
-app.use('/auth', authRoutes);
-app.use('/', trackingRoutes);
+app.use('/auth', authRoutes); // For /auth/login and /auth/signup
+app.use('/', trackingRoutes); // For /track, /analytics, /events
 
 // Start the server
 app.listen(PORT, () => {
